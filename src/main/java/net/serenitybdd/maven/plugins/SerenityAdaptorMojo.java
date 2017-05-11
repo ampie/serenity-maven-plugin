@@ -3,6 +3,8 @@ package net.serenitybdd.maven.plugins;
 import net.thucydides.core.guice.Injectors;
 import net.thucydides.core.reports.TestOutcomeAdaptorReporter;
 import net.thucydides.core.reports.adaptors.AdaptorService;
+import net.thucydides.core.reports.adaptors.ExtendedTestOutcomeAdaptor;
+import net.thucydides.core.reports.adaptors.TestOutcomeAdaptor;
 import net.thucydides.core.util.EnvironmentVariables;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -25,10 +27,23 @@ public class SerenityAdaptorMojo extends AbstractMojo {
     public File outputDirectory;
 
     /**
-     * External test reports are read from here
+     * The format used for the external reports
      */
     @Parameter(property = "import.format", required=true)
     public String format;
+
+    /**
+     * The context within which the source test results were generated
+     */
+    @Parameter(required=false)
+    public String sourceContext;
+
+
+    /**
+     * The context within which the source test results were generated
+     */
+    @Parameter(required=false)
+    public String scenarioStatus;
 
     /**
      * External test reports are read from here if necessary.
@@ -73,12 +88,17 @@ public class SerenityAdaptorMojo extends AbstractMojo {
         getLog().info("Output directory: " + getOutputDirectory());
 
         try {
-            getLog().info("Adaptor: " + adaptorService.getAdaptor(format));
-            reporter.registerAdaptor(adaptorService.getAdaptor(format));
+            TestOutcomeAdaptor adaptor = adaptorService.getAdaptor(format);
+            if(adaptor instanceof ExtendedTestOutcomeAdaptor){
+                ((ExtendedTestOutcomeAdaptor)adaptor).setSourceContext(sourceContext);
+                ((ExtendedTestOutcomeAdaptor)adaptor).setScenarioStatus(scenarioStatus);
+            }
+            getLog().info("Adaptor: " + adaptor);
+            reporter.registerAdaptor(adaptor);
             reporter.setOutputDirectory(outputDirectory);
             reporter.generateReportsFrom(source);
         } catch (Exception e) {
-            throw new MojoExecutionException(e.getMessage());
+            throw new MojoExecutionException(e.getMessage(),e);
         }
     }
 }
