@@ -8,7 +8,6 @@ import net.thucydides.core.reports.UserStoryTestReporter;
 import net.thucydides.core.reports.html.HtmlAggregateStoryReporter;
 import net.thucydides.core.util.EnvironmentVariables;
 import net.thucydides.core.webdriver.Configuration;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -88,6 +87,12 @@ public class SerenityAggregatorMojo extends AbstractMojo {
      */
     @Parameter(property = "thucydides.project.key", defaultValue = "default")
     public String projectKey;
+
+    @Parameter(property = "tags", defaultValue = "")
+    public String tags;
+
+    @Parameter
+    public boolean generateOutcomes;
 
     protected void setOutputDirectory(final File outputDirectory) {
         this.outputDirectory = outputDirectory;
@@ -177,10 +182,8 @@ public class SerenityAggregatorMojo extends AbstractMojo {
     }
 
     private void generateCustomReports() throws IOException {
-        System.out.println("GENERATE CUSTOM REPORTS");
         Collection<UserStoryTestReporter> customReporters = getCustomReportsFor(environmentVariables);
         for(UserStoryTestReporter reporter : customReporters) {
-            System.out.println("GENERATE CUSTOM REPORT FOR " + reporter.getClass().getCanonicalName());
             reporter.generateReportsForTestResultsFrom(sourceOfTestResult());
         }
      }
@@ -194,7 +197,6 @@ public class SerenityAggregatorMojo extends AbstractMojo {
                 String reportClass = environmentVariables.getProperty(environmentVariable);
                 try {
                     UserStoryTestReporter reporter = (UserStoryTestReporter) Class.forName(reportClass).newInstance();
-                    //String name = lastElementOf(Splitter.on(".").splitToList(environmentVariable));
                     reports.add(reporter);
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
@@ -208,10 +210,6 @@ public class SerenityAggregatorMojo extends AbstractMojo {
         return reports;
     }
 
-//    private String lastElementOf(List<String> elements) {
-//        return elements.isEmpty() ? "" : elements.get(elements.size() - 1);
-//    }
-
     protected HtmlAggregateStoryReporter getReporter() {
         if (reporter == null) {
             reporter = new HtmlAggregateStoryReporter(projectKey);
@@ -221,8 +219,6 @@ public class SerenityAggregatorMojo extends AbstractMojo {
     }
 
     private void generateHtmlStoryReports() throws IOException {
-        System.out.println("Generating HTML Story Reports from "+sourceDirectory.getAbsolutePath());
-        System.out.println("Generating HTML Story Reports to "+outputDirectory.getAbsolutePath());
         getReporter().setSourceDirectory(sourceDirectory);
         getReporter().setOutputDirectory(outputDirectory);
         getReporter().setIssueTrackerUrl(issueTrackerUrl);
@@ -230,6 +226,11 @@ public class SerenityAggregatorMojo extends AbstractMojo {
         getReporter().setJiraProject(jiraProject);
         getReporter().setJiraUsername(jiraUsername);
         getReporter().setJiraPassword(jiraPassword);
+        getReporter().setTags(tags);
+
+        if (generateOutcomes) {
+            getReporter().setGenerateTestOutcomeReports();
+        }
         getReporter().generateReportsForTestResultsFrom(sourceDirectory);
     }
 

@@ -46,8 +46,8 @@ ext {
     bintrayRepository = 'maven'
     bintrayPackage = 'serenity-core'
     projectDescription = 'Serenity Maven Plugin'
-
     serenityCoreVersion = '1.1.37-SNAPSHOT'
+    mavenApiVersion = '3.2.5'
     if (!project.hasProperty("bintrayUsername")) {
         bintrayUsername = 'wakaleo'
     }
@@ -59,7 +59,7 @@ ext {
 group = 'net.serenity-bdd.maven.plugins'
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '2.10'
+    gradleVersion = '3.5'
 }
 
 configurations.all {
@@ -75,13 +75,19 @@ configurations.all {
 }
 
 dependencies {
-    compile "net.serenity-bdd:serenity-core:${serenityCoreVersion}"
-    compile ("org.apache.maven:maven-core:3.2.5") {
+    compile "net.serenity-bdd:serenity-core:${serenityCoreVersion}", {
+        exclude module:"guava"
+	exclude group:"info.cukes"
+
+    }
+    compile ("org.apache.maven:maven-core:${mavenApiVersion}") {
         exclude module:"guava"
     }
-    compile ("org.apache.maven:maven-plugin-api:3.2.5")
+    compile ("org.apache.maven:maven-plugin-api:${mavenApiVersion}"){
+        exclude module:"guava"
+    }
     compile "org.apache.maven.reporting:maven-reporting-api:3.0"
-    compile("org.apache.maven.plugin-tools:maven-plugin-annotations:3.4") {
+    compile("org.apache.maven.plugin-tools:maven-plugin-annotations:3.5") {
         exclude module: "maven-artifact"
     }
 
@@ -91,19 +97,21 @@ dependencies {
     testCompile('org.mockito:mockito-all:1.9.5') {
         exclude group: "org.hamcrest", module:"hamcrest-all"
     }
-    testCompile("org.spockframework:spock-core:0.7-groovy-2.0") {
+    testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
         exclude module: "junit-dep"
         exclude module: "groovy-all"
     }
     testCompile("com.github.goldin:spock-extensions:0.1.4") {
-        exclude module: "spock-core"
+        exclude group:"org.spockframework", module: "spock-core"
+        exclude group:"org.slf4j", module: "slf4j-api"
+        exclude group:"asm", module: "asm"
     }
     testCompile("org.codehaus.groovy:groovy-all:2.4.4")
     testCompile("org.easytesting:fest-assert:1.4")
 }
 
 task pluginDescriptor(type: Exec) {
-    commandLine 'mvn', '-e', '-B', 'org.apache.maven.plugins:maven-plugin-plugin:3.3:descriptor','-s','config/settings.xml'
+    commandLine 'mvn', '-e', '-B', 'org.apache.maven.plugins:maven-plugin-plugin:3.3:descriptor', '-s', 'config/settings.xml'
     doFirst {
         final File pom = project.file('pom.xml')
         install.repositories.mavenInstaller.pom.writeTo(pom)
@@ -121,12 +129,14 @@ task pluginDescriptor(type: Exec) {
                                                               |  </build>
                                                               |""".stripMargin().trim())
     }
-    doLast {
-        final pluginDescriptor = new File((File) project.compileGroovy.destinationDir, 'META-INF/maven/plugin.xml')
-        assert pluginDescriptor.file, "[$pluginDescriptor.canonicalPath] was not created"
-        println "Plugin descriptor file:$pluginDescriptor.canonicalPath is created successfully"
-    }
 }
+
+project.pluginDescriptor.doLast {
+    final pluginDescriptor = new File((File) project.compileGroovy.destinationDir, 'META-INF/maven/plugin.xml')
+    assert pluginDescriptor.file, "[$pluginDescriptor.canonicalPath] was not created"
+    println "Plugin descriptor file:$pluginDescriptor.canonicalPath is created successfully"
+}
+
 
 project.compileJava.doLast { pluginDescriptor.execute() }
 
